@@ -248,7 +248,7 @@
         maxBufferLength: 8,
         maxMaxBufferLength: 16,
         maxBufferHole: 2,
-        startPosition: wanted > 2 ? wanted : -1,
+        startPosition: wanted > 2 ? wanted : 0,
       });
       window.__watchHls = hls;
       hls.loadSource(playlistUrl());
