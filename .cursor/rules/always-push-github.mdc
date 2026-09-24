@@ -7,13 +7,13 @@ alwaysApply: true
 
 使用者**不在本機開門面驗收**。iPhone／iPad／桌機一律開 **GitHub Pages**：
 
-https://theoldfathertw.github.io/yroom/
+https://weslie4436.github.io/yroom/
 
 因此：**只 commit、不 push = 沒改。** 代理不得把「已完成」交付建立在僅本機存檔或 Cursor 預覽。
 
 ## 必做
 
-- 遠端 `origin` = `https://github.com/TheOldFatherTW/yroom.git`。
+- 遠端 `origin` = `https://github.com/weslie4436/yroom.git`。
 - 會出現在 Pages 的檔（html／js／css／圖示、`config.js` 隧道 origin、`?v=`）：驗證後 **`git commit` + `git push origin main`**。不要開 PR、不要只留本機。
 - 任務**結束前**就要 push，**不必等使用者再說「推上去」**。本規則覆蓋「沒要求就不要 commit」的通用習慣。
 - 改 `app.css`／`*.js` 時一併提高 `index.html`／`hey.html` 的 `?v=`。
