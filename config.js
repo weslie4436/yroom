@@ -1,1 +1,1 @@
-window.VAULT_ORIGIN = "https://mountain-patches-wires-conducting.trycloudflare.com";
+window.VAULT_ORIGIN = "https://caught-type-dispatched-entertainment.trycloudflare.com";
