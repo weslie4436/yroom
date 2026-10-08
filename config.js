@@ -1,1 +1,1 @@
-window.VAULT_ORIGIN = "https://christina-distinguished-virginia-affecting.trycloudflare.com";
+window.VAULT_ORIGIN = "https://cruise-called-recordings-touring.trycloudflare.com";
