@@ -1,1 +1,1 @@
-window.VAULT_ORIGIN = "https://cruise-called-recordings-touring.trycloudflare.com";
+window.VAULT_ORIGIN = "https://investigator-approach-validity-singles.trycloudflare.com";
