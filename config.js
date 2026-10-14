@@ -1,1 +1,1 @@
-window.VAULT_ORIGIN = "https://investigator-approach-validity-singles.trycloudflare.com";
+window.VAULT_ORIGIN = "https://asin-turbo-franchise-fact.trycloudflare.com";
