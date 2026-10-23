@@ -1,1 +1,1 @@
-window.VAULT_ORIGIN = "https://asin-turbo-franchise-fact.trycloudflare.com";
+window.VAULT_ORIGIN = "https://glenn-mouth-mouse-attempts.trycloudflare.com";
