@@ -1,1 +1,1 @@
-window.VAULT_ORIGIN = "https://sequences-flame-positions-magazines.trycloudflare.com";
+window.VAULT_ORIGIN = "https://continued-lap-compiled-boolean.trycloudflare.com";
