@@ -1,1 +1,1 @@
-window.VAULT_ORIGIN = "https://continued-lap-compiled-boolean.trycloudflare.com";
+window.VAULT_ORIGIN = "https://acknowledge-representation-cdt-proposal.trycloudflare.com";
