@@ -1062,6 +1062,30 @@
     return row;
   }
 
+  function byWatchCount(a, b) {
+    var ac = Number(a.watch_count) || 0;
+    var bc = Number(b.watch_count) || 0;
+    if (bc !== ac) return bc - ac;
+    var al = Number(a.last_watched) || 0;
+    var bl = Number(b.last_watched) || 0;
+    if (bl !== al) return bl - al;
+    return 0;
+  }
+
+  function rankVideoShelf(items) {
+    var folders = [];
+    var films = [];
+    items.forEach(function (item) {
+      if (item.kind === "org") folders.push(item);
+      else films.push(item);
+    });
+    films.sort(byWatchCount);
+    return folders.concat(
+      films.filter(function (item) { return item.favorite; }),
+      films.filter(function (item) { return !item.favorite; })
+    );
+  }
+
   function paintFeed() {
     revokeThumbs();
     feed.innerHTML = "";
@@ -1078,6 +1102,9 @@
     items = items.filter(function (item) { return item.favorite; }).concat(
       items.filter(function (item) { return !item.favorite; })
     );
+    if (mode === "video") {
+      items = rankVideoShelf(items);
+    }
     items.forEach(function (item, index) {
       catalog[item.id] = item;
       if (mode === "video" && listMode) {

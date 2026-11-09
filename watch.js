@@ -41,10 +41,10 @@
     return withKey("/media.mp4?video=" + encodeURIComponent(videoId));
   }
   function playlistUrl() {
-    return withKey("/media.m3u8?video=" + encodeURIComponent(videoId) + "&hv=d3");
+    return withKey("/media.m3u8?video=" + encodeURIComponent(videoId) + "&hv=d4");
   }
   function segmentUrl(index) {
-    return withKey("/media-seg.ts?video=" + encodeURIComponent(videoId) + "&i=" + index + "&hv=d3");
+    return withKey("/media-seg.ts?video=" + encodeURIComponent(videoId) + "&i=" + index + "&hv=d4");
   }
   function coverUrl() {
     return withKey("/cover?book=" + encodeURIComponent(videoId));
@@ -245,9 +245,11 @@
       hls = new window.Hls({
         enableWorker: true,
         startFragPrefetch: true,
+        lowLatencyMode: false,
         maxBufferLength: 8,
         maxMaxBufferLength: 16,
         maxBufferHole: 2,
+        // 0, never -1: EVENT leftovers would otherwise jump to the live edge.
         startPosition: wanted > 2 ? wanted : 0,
       });
       window.__watchHls = hls;
