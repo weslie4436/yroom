@@ -41,7 +41,13 @@
     return withKey("/media.mp4?video=" + encodeURIComponent(videoId));
   }
   function playlistUrl() {
-    return withKey("/media.m3u8?video=" + encodeURIComponent(videoId) + "&hv=d4");
+    var href = withKey("/media.m3u8?video=" + encodeURIComponent(videoId) + "&hv=d4");
+    if (wanted > 2) {
+      var u = new URL(href);
+      u.searchParams.set("t", String(Math.floor(wanted)));
+      return u.href;
+    }
+    return href;
   }
   function segmentUrl(index) {
     return withKey("/media-seg.ts?video=" + encodeURIComponent(videoId) + "&i=" + index + "&hv=d4");
@@ -266,19 +272,17 @@
         if (!data || !data.fatal) return;
         if (data.type === window.Hls.ErrorTypes.NETWORK_ERROR) {
           netRetry += 1;
-          if (netRetry > 2) {
-            attachMp4();
+          if (netRetry > 8) {
             return;
           }
-          try { hls.startLoad(loadAt()); } catch (e) { attachMp4(); }
+          try { hls.startLoad(loadAt()); } catch (e) {}
           return;
         }
         if (data.type === window.Hls.ErrorTypes.MEDIA_ERROR && recoveries < 2) {
           recoveries += 1;
-          try { hls.recoverMediaError(); } catch (e) { attachMp4(); }
+          try { hls.recoverMediaError(); } catch (e) {}
           return;
         }
-        attachMp4();
       });
       bindSeekPrefetch();
     }).catch(function () {
@@ -323,6 +327,7 @@
     })
     .then(function (prefs) {
       var pos = Number(prefs && prefs.position) || 0;
+      if (pos > 2) markWanted(pos);
       return attachMedia().then(function () {
         seekWhenReady(pos);
         if (waitEl) waitEl.hidden = true;
