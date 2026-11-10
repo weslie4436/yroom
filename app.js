@@ -497,8 +497,19 @@
     });
   }
 
+  function filmMode() {
+    return mode === "video" || mode === "drama";
+  }
+
+  function isDramaItem(item) {
+    return !!(item && (item.tab === "drama" || String(item.id || "").indexOf("hg/") === 0));
+  }
+
   function shelfTab() {
-    return mode === "fav" ? "fav" : (mode === "video" ? "video" : "manga");
+    if (mode === "fav") return "fav";
+    if (mode === "video") return "video";
+    if (mode === "drama") return "drama";
+    return "manga";
   }
 
   function shelfPath() {
@@ -546,7 +557,10 @@
       var count = Number(item.page_count) || 0;
       return count > 1 ? count + "本" : "資料夾";
     }
-    if (item.kind === "video") return item.duration ? clock(item.duration) : "";
+    if (item.kind === "video") {
+      if (item.episode_count) return item.episode_count + "集";
+      return item.duration ? clock(item.duration) : "";
+    }
     return item.page_count ? item.page_count + "頁" : "";
   }
 
@@ -952,20 +966,20 @@
   }
 
   function applyLayoutClass() {
-    if (feed) feed.classList.toggle("news-list", mode === "video" && !!listMode);
+    if (feed) feed.classList.toggle("news-list", filmMode() && !!listMode);
     if (layoutBtn) {
-      layoutBtn.hidden = mode !== "video";
+      layoutBtn.hidden = !filmMode();
       layoutBtn.classList.toggle("is-live", !!listMode);
       var face = layoutBtn.querySelector(".ins-face");
       if (face) face.innerHTML = listMode ? GRID : LIST;
       layoutBtn.setAttribute("aria-label", listMode ? "封面格子" : "橫條排列");
       layoutBtn.title = listMode ? "封面格子" : "橫條排列";
     }
-    if (mode === "video" && listMode) showRail(false);
+    if (filmMode() && listMode) showRail(false);
   }
 
   function toggleLayout() {
-    if (mode !== "video") pickMode("video");
+    if (!filmMode()) pickMode("video");
     listMode = !listMode;
     try { localStorage.setItem(LAYOUT_KEY, listMode ? "list" : "grid"); } catch (e) {}
     paintFeed();
@@ -1031,7 +1045,7 @@
     var ops = document.createElement("div");
     ops.className = "row-ops";
     var time = document.createElement("span");
-    time.textContent = item.duration ? clock(item.duration) : "";
+    time.textContent = item.episode_count ? (item.episode_count + "集") : (item.duration ? clock(item.duration) : "");
     var play = insButton("row-play", PLAY, "播放");
     play.addEventListener("click", function (ev) {
       ev.preventDefault();
@@ -1089,31 +1103,32 @@
   function paintFeed() {
     revokeThumbs();
     feed.innerHTML = "";
-    feed.classList.toggle("is-film", mode === "video");
+    feed.classList.toggle("is-film", filmMode());
     applyLayoutClass();
     var items = allItems;
     if (!cwd) {
       items = allItems.filter(function (item) {
         if (mode === "fav") return item.favorite;
-        if (mode === "video") return item.kind === "video" || item.tab === "video";
-        return item.kind === "org" || (item.kind !== "video" && item.tab !== "video");
+        if (mode === "drama") return isDramaItem(item);
+        if (mode === "video") return (item.kind === "video" || item.tab === "video") && !isDramaItem(item);
+        return item.kind === "org" || (item.kind !== "video" && item.tab !== "video" && !isDramaItem(item));
       });
     }
     items = items.filter(function (item) { return item.favorite; }).concat(
       items.filter(function (item) { return !item.favorite; })
     );
-    if (mode === "video") {
+    if (filmMode()) {
       items = rankVideoShelf(items);
     }
     items.forEach(function (item, index) {
       catalog[item.id] = item;
-      if (mode === "video" && listMode) {
+      if (filmMode() && listMode) {
         feed.appendChild(filmRow(item));
         return;
       }
       var tile = document.createElement("button");
       tile.type = "button";
-      tile.className = item.kind === "video" || item.tab === "video" ? "tile tile-film" : "tile";
+      tile.className = item.kind === "video" || item.tab === "video" || isDramaItem(item) ? "tile tile-film" : "tile";
       tile.setAttribute("data-id", item.id || "");
       if (item.kind === "org") tile.dataset.kind = "org";
       if (item.has_cover) {
@@ -1205,7 +1220,8 @@
     var q = new URLSearchParams();
     q.set("video", item.id);
     q.set("k", KEY);
-    q.set("wv", "10");
+    q.set("wv", "13");
+    if (item.episode) q.set("ep", String(item.episode));
     return "./watch.html?" + q.toString() + "#k=" + encodeURIComponent(KEY);
   }
 
@@ -1446,7 +1462,7 @@
   }
 
   function pickMode(next) {
-    mode = next === "fav" ? "fav" : (next === "video" ? "video" : "manga");
+    mode = next === "fav" ? "fav" : (next === "video" ? "video" : (next === "drama" ? "drama" : "manga"));
     document.querySelectorAll("#mode-bar .mode-btn").forEach(function (el) {
       el.classList.toggle("is-on", el.dataset.mode === mode);
     });

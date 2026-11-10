@@ -3,6 +3,9 @@
   var key = window.YROOM_VIEW_KEY || q.get("k") || "";
   var origin = String(window.VAULT_ORIGIN || "").replace(/\/$/, "") || location.origin;
   var videoId = q.get("video") || q.get("book") || "";
+  var remote = String(videoId).indexOf("hg/") === 0;
+  var episode = Math.max(1, parseInt(q.get("ep") || "1", 10) || 1);
+  var episodeCount = 0;
   var titleEl = document.getElementById("bookTitle");
   var player = document.getElementById("player");
   var playBtn = document.getElementById("playBtn");
@@ -41,8 +44,8 @@
     return withKey("/media.mp4?video=" + encodeURIComponent(videoId));
   }
   function playlistUrl() {
-    var href = withKey("/media.m3u8?video=" + encodeURIComponent(videoId) + "&hv=d4");
-    if (wanted > 2) {
+    var href = withKey("/media.m3u8?video=" + encodeURIComponent(videoId) + (remote ? "&ep=" + episode : "&hv=d4"));
+    if (!remote && wanted > 2) {
       var u = new URL(href);
       u.searchParams.set("t", String(Math.floor(wanted)));
       return u.href;
@@ -75,6 +78,7 @@
     return loadScript("https://cdn.jsdelivr.net/npm/hls.js@1.6.13/dist/hls.min.js");
   }
   function prefetchAt(sec) {
+    if (remote) return;
     var index = Math.max(0, Math.floor((sec || 0) / segmentSec));
     if (index === lastPrefetch) return;
     lastPrefetch = index;
@@ -181,6 +185,7 @@
     if (!done && now - lastSave < 4000) return;
     lastSave = now;
     var body = { position: Math.max(0, Math.floor(sec || 0)) };
+    if (remote) body.episode = episode;
     if (done) {
       var fin = {};
       fin[videoId] = true;
@@ -203,7 +208,7 @@
         var p = player.play();
         if (p && p.then) {
           p.catch(function () {
-            if (hls) attachMp4();
+            if (hls && !remote) attachMp4();
           });
         }
         if (playBtn) playBtn.hidden = true;
@@ -245,7 +250,7 @@
     netRetry = 0;
     return loadHls().then(function () {
       if (!window.Hls || !window.Hls.isSupported()) {
-        attachMp4();
+        if (!remote) attachMp4();
         return;
       }
       hls = new window.Hls({
@@ -273,6 +278,7 @@
         if (data.type === window.Hls.ErrorTypes.NETWORK_ERROR) {
           netRetry += 1;
           if (netRetry > 8) {
+            if (!remote) attachMp4();
             return;
           }
           try { hls.startLoad(loadAt()); } catch (e) {}
@@ -286,7 +292,7 @@
       });
       bindSeekPrefetch();
     }).catch(function () {
-      attachMp4();
+      if (!remote) attachMp4();
     });
   }
   function attachMedia() {
@@ -295,7 +301,7 @@
     if (nativeHls()) {
       player.removeAttribute("crossorigin");
       player.addEventListener("error", function () {
-        if (hls) return;
+        if (hls || remote) return;
         attachMp4();
       }, { once: true });
       player.src = playlistUrl();
@@ -317,10 +323,57 @@
   }
   bindWatchChrome();
 
-  mediaReady = fetch(withKey("/api/video?video=" + encodeURIComponent(videoId)))
+  function videoQuery() {
+    return "/api/video?video=" + encodeURIComponent(videoId) + (remote ? "&ep=" + episode : "");
+  }
+  function paintTitle(info) {
+    var name = (info && info.title) || "";
+    if (remote && episodeCount > 1) name = name + " · " + episode;
+    if (titleEl) titleEl.textContent = name;
+  }
+  function paintEndNext() {
+    var btn = document.getElementById("endNext");
+    if (!btn) return;
+    btn.hidden = !(remote && episodeCount && episode < episodeCount);
+  }
+  function loadEpisode(nextEp) {
+    episode = Math.max(1, nextEp || 1);
+    wanted = 0;
+    lastSave = 0;
+    if (hls) {
+      try { hls.destroy(); } catch (e) {}
+      hls = null;
+    }
+    try { player.removeAttribute("src"); player.load(); } catch (e) {}
+    showEnd(false);
+    mediaReady = fetch(withKey(videoQuery()))
+      .then(function (r) { return r.json(); })
+      .then(function (info) {
+        remote = !!(info && info.remote) || remote;
+        episode = Number(info && info.episode) || episode;
+        episodeCount = Number(info && info.episode_count) || episodeCount;
+        duration = Number(info && info.duration) || 0;
+        paintTitle(info);
+        paintEndNext();
+        fetch(withKey("/api/prefs?video=" + encodeURIComponent(videoId)), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ episode: episode, position: 0 }),
+        }).catch(function () {});
+        return attachMedia();
+      })
+      .then(function () {
+        startPlay();
+      });
+  }
+  mediaReady = fetch(withKey(videoQuery()))
     .then(function (r) { return r.json(); })
     .then(function (info) {
-      if (titleEl) titleEl.textContent = (info && info.title) || "";
+      remote = !!(info && info.remote) || remote;
+      episode = Number(info && info.episode) || episode;
+      episodeCount = Number(info && info.episode_count) || 0;
+      paintTitle(info);
+      paintEndNext();
       duration = Number(info && info.duration) || 0;
       segmentSec = Number(info && info.segment) || 4;
       return fetch(withKey("/api/prefs?video=" + encodeURIComponent(videoId))).then(function (r) { return r.json(); });
@@ -365,7 +418,14 @@
     });
     player.addEventListener("ended", function () {
       savePos(duration || player.currentTime, true);
+      paintEndNext();
       showEnd(true);
+    });
+  }
+  var endNext = document.getElementById("endNext");
+  if (endNext) {
+    endNext.addEventListener("click", function () {
+      if (episode < episodeCount) loadEpisode(episode + 1);
     });
   }
   document.getElementById("endAgain").addEventListener("click", function () {
