@@ -1,1 +1,1 @@
-window.VAULT_ORIGIN = "https://acknowledge-representation-cdt-proposal.trycloudflare.com";
+window.VAULT_ORIGIN = "https://syndication-one-famous-associates.trycloudflare.com";
