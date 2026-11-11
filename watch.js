@@ -16,11 +16,13 @@
   var gear = document.getElementById("configButton");
   var endMask = document.getElementById("endMask");
   var duration = 0;
-  var hv = "d5";
+  var segmentSec = 4;
   var lastSave = 0;
   var readySent = false;
   var hls = null;
   var mediaReady = Promise.resolve();
+  var prefetchTimer = 0;
+  var lastPrefetch = -1;
   var wanted = 0;
   var lastSeekT = 0;
   var userSeekAt = 0;
@@ -42,13 +44,16 @@
     return withKey("/media.mp4?video=" + encodeURIComponent(videoId));
   }
   function playlistUrl() {
-    var href = withKey("/media.m3u8?video=" + encodeURIComponent(videoId) + (remote ? "&ep=" + episode : "&hv=" + hv));
+    var href = withKey("/media.m3u8?video=" + encodeURIComponent(videoId) + (remote ? "&ep=" + episode : "&hv=d4"));
     if (!remote && wanted > 2) {
       var u = new URL(href);
       u.searchParams.set("t", String(Math.floor(wanted)));
       return u.href;
     }
     return href;
+  }
+  function segmentUrl(index) {
+    return withKey("/media-seg.ts?video=" + encodeURIComponent(videoId) + "&i=" + index + "&hv=d4");
   }
   function coverUrl() {
     return withKey("/cover?book=" + encodeURIComponent(videoId));
@@ -72,6 +77,13 @@
     if (window.Hls) return Promise.resolve();
     return loadScript("https://cdn.jsdelivr.net/npm/hls.js@1.6.13/dist/hls.min.js");
   }
+  function prefetchAt(sec) {
+    if (remote) return;
+    var index = Math.max(0, Math.floor((sec || 0) / segmentSec));
+    if (index === lastPrefetch) return;
+    lastPrefetch = index;
+    fetch(segmentUrl(index), { cache: "force-cache", mode: "cors" }).catch(function () {});
+  }
   function loadAt() {
     return wanted > 2 ? wanted : 0;
   }
@@ -83,8 +95,10 @@
   }
   function kickLoad() {
     var at = loadAt();
-    if (!hls) return;
-    try { hls.startLoad(at); } catch (e) {}
+    if (hls) {
+      try { hls.startLoad(at); } catch (e) {}
+    }
+    prefetchAt(at);
   }
   function whenPlayable(fn) {
     if (!player) return;
@@ -118,6 +132,7 @@
     if (hls) {
       try { hls.startLoad(wanted); } catch (e) {}
     }
+    prefetchAt(wanted);
     holdUntil = Date.now() + 1200;
     setTimeout(function () { restoring = false; }, 200);
   }
@@ -129,6 +144,10 @@
   }
   function onUserSeek() {
     if (!player || restoring) return;
+    clearTimeout(prefetchTimer);
+    prefetchTimer = setTimeout(function () {
+      prefetchAt(player.currentTime);
+    }, 80);
     if (!userIsScrubbing()) return;
     var t = player.currentTime || 0;
     if (Date.now() < holdUntil || isSnapBack(t)) {
@@ -192,12 +211,15 @@
             if (hls && !remote) attachMp4();
           });
         }
+        if (playBtn) playBtn.hidden = true;
+        if (waitEl) waitEl.hidden = true;
       });
     });
   }
   function seekWhenReady(pos) {
     if (!player) return;
     if (pos > 2) markWanted(pos);
+    else prefetchAt(0);
     var done = false;
     function go() {
       if (done || wanted <= 2) return;
@@ -235,11 +257,10 @@
         enableWorker: true,
         startFragPrefetch: true,
         lowLatencyMode: false,
-        maxBufferLength: 16,
-        maxMaxBufferLength: 32,
-        backBufferLength: 20,
-        maxBufferHole: 0.5,
-        // 0, never -1: a missing start would jump toward a live edge.
+        maxBufferLength: 8,
+        maxMaxBufferLength: 16,
+        maxBufferHole: 2,
+        // 0, never -1: EVENT leftovers would otherwise jump to the live edge.
         startPosition: wanted > 2 ? wanted : 0,
       });
       window.__watchHls = hls;
@@ -345,7 +366,6 @@
         startPlay();
       });
   }
-  var scriptP = nativeHls() ? Promise.resolve() : loadHls();
   mediaReady = fetch(withKey(videoQuery()))
     .then(function (r) { return r.json(); })
     .then(function (info) {
@@ -355,17 +375,15 @@
       paintTitle(info);
       paintEndNext();
       duration = Number(info && info.duration) || 0;
-      return Promise.all([
-        fetch(withKey("/api/prefs?video=" + encodeURIComponent(videoId))).then(function (r) { return r.json(); }),
-        scriptP,
-      ]);
+      segmentSec = Number(info && info.segment) || 4;
+      return fetch(withKey("/api/prefs?video=" + encodeURIComponent(videoId))).then(function (r) { return r.json(); });
     })
-    .then(function (pair) {
-      var prefs = pair[0];
+    .then(function (prefs) {
       var pos = Number(prefs && prefs.position) || 0;
       if (pos > 2) markWanted(pos);
       return attachMedia().then(function () {
         seekWhenReady(pos);
+        if (waitEl) waitEl.hidden = true;
         ready();
       });
     })
@@ -382,14 +400,7 @@
   if (player) {
     player.addEventListener("play", function () {
       if (playBtn) playBtn.hidden = true;
-    });
-    player.addEventListener("playing", function () {
-      var box = document.getElementById("watchPending");
-      if (box) box.hidden = true;
-    });
-    player.addEventListener("waiting", function () {
-      var box = document.getElementById("watchPending");
-      if (box && !player.ended) box.hidden = false;
+      if (waitEl) waitEl.hidden = true;
     });
     player.addEventListener("timeupdate", function () {
       var t = player.currentTime || 0;
