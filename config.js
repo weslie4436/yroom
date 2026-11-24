@@ -1,1 +1,1 @@
-window.VAULT_ORIGIN = "https://raises-reunion-fighters-travelers.trycloudflare.com";
+window.VAULT_ORIGIN = "https://thumbnail-tune-continually-implementing.trycloudflare.com";
