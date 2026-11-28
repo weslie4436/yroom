@@ -1,1 +1,1 @@
-window.VAULT_ORIGIN = "https://hence-heat-notre-pay.trycloudflare.com";
+window.VAULT_ORIGIN = "https://formats-amy-bus-supreme.trycloudflare.com";
